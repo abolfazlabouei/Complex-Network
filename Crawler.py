@@ -1,50 +1,66 @@
+import logging
+from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
-url = 'https://www.digikala.com/'
-reqs = requests.get(url)
-soup = BeautifulSoup(reqs.text, 'html.parser')
-urls = []
-for link in soup.find_all('a'):
-    if isinstance(link,str):
-        urls.append(link)
-file1 = open("digikala.txt", "w")
-count=1
-product_links=[]
-page_num=[]
-flag=True
-temp=1
-key_id=1
-page_num.append(temp)
-while (len(page_num)!=0):
-    for element in urls:
-        if isinstance(element,str):
-            if "/product/" in element:
-                if count>=2:
-                    cursor = conn.execute("SELECT id, product_link from products")
-                    for row in cursor:
-                        link1=row[1]
-                        id1=row[2]
-                        if link1==element:
-                            conn.execute("INSERT INTO links (source,destination) VALUES (?,?)", (temp,id1))
-                            file1.write(str(temp) + " " + str(id1) + '\n')
-                        flag=False
-                elif count==1 or flag==True:
-                    key_id+=1
-                    conn.execute("INSERT INTO products(id,product_link) VALUES (?,?)", (key_id,element))
-                    page_num.append(key_id)
-                    product_links.append(element)
-                    conn.execute("INSERT INTO links (source,destination) VALUES (?,?)", (temp,key_id))
-                    file1.write(str(temp) + " " + str(key_id) + '\n')
-    r_link=page_links.pop()
-    temp=page_num.pop()
-    count+=1
-    reqs = requests.get(r_link)
-    soup = BeautifulSoup(reqs.text, 'html.parser')
-    urls = []
-    for link in soup.find_all('a'):
-        if isinstance(link,str):
-            urls.append(link)
-file1.close()
-conn.commit()
-conn.close()
+logging.basicConfig(
+    format='%(asctime)s %(levelname)s:%(message)s',
+    level=logging.INFO)
+
+class Crawler:
+
+    def __init__(self, urls=[]):
+        self.visited_urls = []
+        self.urls_to_visit = urls
+        self.base_url = "https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=complex+network+&btnG=&oq=comp"
+        self.index = 0
+
+    def download_url(self, url):
+        return requests.get(url).text
+
+    def get_linked_urls(self, url, html):
+        soup = BeautifulSoup(html, 'html.parser')
+        # body = soup.select_one('html')
+        for link in soup.select('a'):
+            path = link.get('href')
+            if path and path.startswith('/'):
+                path = urljoin(url, path)
+            yield path
+
+    def add_url_to_visit(self, url):
+        
+        if url not in self.visited_urls and url not in self.urls_to_visit:
+            self.urls_to_visit.append(url)
+        
+        
+
+    def crawl(self, url):
+        html = self.download_url(url)
+        f = open("googleschoolar2.txt",'a')
+
+
+        for url1 in self.get_linked_urls(self.base_url, html):
+            if url1 and not url1.startswith('#'):
+                self.add_url_to_visit(url1 )
+                f.write(str(self.index)) 
+                f.write(' ')
+                f.write(str(self.urls_to_visit.index(url1)))
+                f.write('\n')
+        f.close()      
+
+
+    def run(self):
+        while self.urls_to_visit:
+            url = self.urls_to_visit[self.index]
+            logging.info(f'Crawling: {url}')
+            try:
+                self.crawl(url)
+            except Exception:
+                logging.exception(f'Failed to crawl: {url}')
+            finally:
+                self.visited_urls.append(url)
+                self.index += 1
+
+if __name__ == '__main__':
+    crawler = Crawler(urls=['https://scholar.google.com/scholar?hl=en&as_sdt=0%2C5&q=complex+network+&btnG=&oq=comp']).run()
+    
