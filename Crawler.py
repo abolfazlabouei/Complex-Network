@@ -36,7 +36,7 @@ class Crawler:
 
     def crawl(self, url):
         html = self.download_url(url)
-        f = open("googleschoolar2.txt",'a')
+        f = open("googleschoolar.txt",'a')
 
 
         for url1 in self.get_linked_urls(self.base_url, html):
